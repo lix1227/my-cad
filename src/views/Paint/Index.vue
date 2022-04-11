@@ -9,9 +9,9 @@
         <hr>
         <div class="side-btn">
           <span class="iconfont icon-save-fill" title="保存" @click="saveProject()"></span>
-          <span class="iconfont icon-ashbin" title="清空" @click="clearAll()"></span>
-          <span class="iconfont icon-return" title="返回前一个操作" @click="paintPreStep()" ></span>
-          <span class="iconfont icon-return" title="返回后一个操作" @click="paintNextStep()"></span>
+          <span class="iconfont icon-ashbin" title="清空" @click="clearAll($event)"></span>
+          <span v-show="isPaint" class="iconfont icon-return" title="返回前一个操作" @click="paintPreStep()" ></span>
+          <span v-show="isPaint" class="iconfont icon-return" title="返回后一个操作" @click="paintNextStep()"></span>
         </div>
       </div>
       <div id="sidebar-color">
@@ -52,15 +52,25 @@
       </div>
     </div>
     <div id="paint-content">
-      <span v-if="isPaint" class="paint_mode mode">绘制模式</span>
-      <span v-else class="show_mode mode">渲染模式</span>
-      <span class="paint-msg">Tips:<strong>“单击”确认绘制起点和终点</strong></span>
-      <span class="paint-msg">你目前选择的是:<strong> {{isSelectOp}} </strong></span>
+      <div class="paint-content-title">
+        <div class="paint-content-title-left">
+          <span v-show="isPaint" class="paint_mode mode" @click="changeMode()">绘制模式</span>
+          <span v-show="!isPaint" class="show_mode mode"  @click="changeMode()">渲染模式</span>
+          <span v-show="isPaint" class="paint-msg">Tips:<strong>“单击”确认绘制起点和终点</strong></span>
+          <span v-show="isPaint" class="paint-msg">你目前选择的是:<strong> {{isSelectOp}} </strong></span>
+        </div>
+        <div class="paint-content-title-right" v-show="isPaint">
+          <span class="paint-msg">当前元素：{{this.currentUI.gid}}</span>
+          <span class="paint-msg">起点坐标-X：{{UI_ox}}</span>
+          <span class="paint-msg">起点坐标-Y：{{UI_oy}}</span>
+          <span class="paint-msg">起点与水平夹角：{{UI_ox_deg}}</span>
+        </div>
+      </div>
       <canvas id="canvas" width="1400" height="700"></canvas>
     </div>
 
     <!--  图形UI DOM   -->
-    <div id="paint-layer" class="paint-layer" v-show="isShowPaint" @mousemove="isNewCreate || isRotate ? moveGraphUI($event) : 'return false;'"  @click="isNewCreate || isRotate ? setStartAndEndPoint($event) : 'return false;'" ref="paint-layer">
+    <div id="paint-layer" class="paint-layer" v-show="isPaint" @mousemove="isNewCreate || isRotate ? moveGraphUI($event) : 'return false;'"  @click="isNewCreate || isRotate ? setStartAndEndPoint($event) : 'return false;'" ref="paint-layer">
 
     </div>
 
@@ -69,6 +79,13 @@
       <span class="iconfont icon-close" title="取消" @click="paintBtnCancel"></span>
       <span class="iconfont icon-exchangerate" title="旋转" @click="paintBtnRotate"></span>
       <span class="iconfont icon-seleted" title="确认" @click="paintBtnOk"></span>
+    </div>
+    <!--  UI悬浮信息框（长度与宽度信息）  -->
+    <div id="info-width" class="paint-span-info" v-show="isShowWidthInfo">
+      <span>{{Math.round((this.currentUI.width) * 100) /100}}</span>
+    </div>
+    <div id="info-height" class="paint-span-info" v-show="isShowHeightInfo">
+      <span>{{Math.round((this.currentUI.height) * 100) /100}}</span>
     </div>
     <!--  弹窗DOM  -->
     <div id="canvas-modal" v-show="isOpenModal">
@@ -100,7 +117,8 @@ export default {
       isExit:false,                            // 是否退出
       isSave:false,                            // 文件是否已经保存
       isOpenModal:false,                       // 是否打开弹窗
-      isShowPaint:false,                       // 是否展示图形UI层
+      isShowWidthInfo:false,                   // 是否显示宽度信息
+      isShowHeightInfo:false,                  // 是否显示高度信息
       modal_title:"标题",                       // 弹窗标题
       modal_content:"文本",                     // 弹窗文本
       proInfo:{                                // 项目信息
@@ -139,8 +157,8 @@ export default {
         // num: int        顶点数量
         // over:int       图形是否绘制完
       ],
-      recycleDOMList:[],                             // 回收箱
-      currentDOMList:[],
+      recycleDOMList:[],                        // DOM回收箱
+      currentDOMList:[],                        // DOM列表
       OriginPoint:{                              // 保存起点位置
         ox:null,
         oy:null,
@@ -157,8 +175,30 @@ export default {
         height:null,
         radius:null
       },
-      UIList:[],                                   // UI列表
-      recycleUIList:[]
+      UIList:[],                                 // UI列表
+      recycleUIList:[],                          // UI回收箱
+      painTitleInfo:{
+        ox:'',
+        oy:'',
+        ox_deg:'',
+        oy_deg:'',
+        width:'',
+        hegiht:'',
+      }
+    }
+  },
+  computed:{
+    UI_ox(){
+      let ox = this.currentUI.point.ox || this.painTitleInfo.ox
+      return Math.round(ox * 100) / 100
+    },
+    UI_oy(){
+      let oy =  this.currentUI.point.oy || this.painTitleInfo.oy
+      return Math.round(oy * 100) / 100
+    },
+    UI_ox_deg(){
+      let deg_x = this.currentUI.deg_x || this.painTitleInfo.ox_deg
+      return Math.round(deg_x * 100) / 100
     }
   },
   created() {
@@ -278,13 +318,16 @@ export default {
     },
     // 彻底清空画布
     clearAll(e){
+      this.isSelectOp = e.target.title;
       this.modal_title = "清空画布确认";
       this.modal_content = "是否清空画布？"
       this.openModal();
     },
     // 绘制回退操作
     paintPreStep(){
-      this.isShowPaint = true;
+      if(this.UIList.length === 0){
+        return;
+      }
       let popUI = this.UIList.pop();
       let popDOM = this.currentDOMList.pop();
       let paintLayer = document.getElementById('paint-layer');
@@ -296,8 +339,10 @@ export default {
     },
     // 绘制前进操作
     paintNextStep(){
-      this.isShowPaint = true;
-      let pushUI = this.UIList.pop();
+      if(this.recycleUIList.length === 0){
+        return;
+      }
+      let pushUI = this.recycleUIList.pop();
       let pushDOM = this.recycleDOMList.pop();
       let paintLayer = document.getElementById('paint-layer');
 
@@ -370,8 +415,6 @@ export default {
         this.UIList = [];
         paintLayer.innerHTML = '';
 
-        this.isShowPaint = false;
-        this.isPaint = false;
         this.isNewCreate = false;
         this.isPause = false;
         this.isOriginPoint = false;
@@ -405,8 +448,6 @@ export default {
       $(`#${gid}`).remove();
       this.initCurrentUI();
 
-      this.isShowPaint = false;
-      this.isPaint = false;
       this.isNewCreate = false;
       this.isPause = false;
       this.isOriginPoint = false;
@@ -431,7 +472,6 @@ export default {
 
       this.currentUI.gid = $(LineDOM).attr('id')
       this.currentUI.type = 'line'
-      this.isShowPaint = true;
       this.isPaint = true;
       this.isNewCreate = true;
       this.isSelectOp = e.target.title;
@@ -452,7 +492,6 @@ export default {
 
       this.currentUI.gid = $(RectDOM).attr('id')
       this.currentUI.type = 'rect'
-      this.isShowPaint = true;
       this.isPaint = true;
       this.isNewCreate = true;
       this.isSelectOp = e.target.title;
@@ -474,7 +513,6 @@ export default {
 
       this.currentUI.gid = $(RectDOM).attr('id')
       this.currentUI.type = 'fillRect'
-      this.isShowPaint = true;
       this.isPaint = true;
       this.isNewCreate = true;
       this.isSelectOp = e.target.title;
@@ -495,7 +533,6 @@ export default {
 
       this.currentUI.gid = $(CycleDOM).attr('id')
       this.currentUI.type = 'cycle'
-      this.isShowPaint = true;
       this.isPaint = true;
       this.isNewCreate = true;
       this.isSelectOp = e.target.title;
@@ -515,7 +552,6 @@ export default {
 
       this.currentUI.gid = $(TriangleDOM).attr('id')
       this.currentUI.type = 'triangle'
-      this.isShowPaint = true;
       this.isPaint = true;
       this.isNewCreate = true;
       this.isSelectOp = e.target.title;
@@ -535,7 +571,6 @@ export default {
 
       this.currentUI.gid = $(SemiCycleDOM).attr('id')
       this.currentUI.type = 'semiCycle'
-      this.isShowPaint = true;
       this.isPaint = true;
       this.isNewCreate = true;
       this.isSelectOp = e.target.title;
@@ -576,10 +611,14 @@ export default {
         if(!this.isOriginPoint && !this.isPause){
           _child.style.left = e.x-canvas_p.x+'px';
           _child.style.top = e.y-canvas_p.y+'px';
+          this.painTitleInfo.ox = e.x-canvas_p.x;
+          this.painTitleInfo.oy = e.y-canvas_p.y;
         }else if(this.isOriginPoint && !this.isPause){
+          let widthSpan = document.getElementById('info-width')
+          let heightSpan = document.getElementById('info-height')
           let type = $(_child).attr('uiType');
-          console.log(type)
           if(type === 'line'  || type === 'semiCycle'){
+            this.isShowWidthInfo = true;
             let rad = Math.atan2(e.y - canvas_p.y - oy, e.x - canvas_p.x - ox);
             let deg = rad / (Math.PI / 180);
             let _width = Math.abs(e.x-canvas_p.x-ox) / Math.abs(Math.cos(rad));
@@ -597,7 +636,14 @@ export default {
               this.currentUI.width = _width;
               this.currentUI.deg_x = deg;
             }
+            let span_left = ox + canvas_p.x + (e.x-canvas_p.x-ox) / 2
+            let temp =  Math.abs((e.x-canvas_p.x-ox) / 2) * Math.abs(Math.tan(rad));
+            let span_top = oy + canvas_p.y + (deg < 0 ? -temp : temp);
+            $(widthSpan).css({'left': `${span_left}px`, 'top':`${span_top}px`, 'transform': 'translate(-50%,-100%)'})
+
           }else if(type === 'rect' || type === 'fillRect' || type === 'cycle' || type === 'triangle'){
+            this.isShowWidthInfo = true;
+            this.isShowHeightInfo = true;
             let rad = Math.atan2(e.y - canvas_p.y - oy, e.x - canvas_p.x - ox);
             let deg = rad / (Math.PI / 180);
             let _width = Math.abs(e.x-canvas_p.x-ox);
@@ -634,8 +680,22 @@ export default {
             }else {
               $(_child).css({'width':`${_width}px`, 'height':`${_height}px`})
             }
-            this.currentUI.width = _width;
-            this.currentUI.height = _height;
+
+            let span_width_left = ox + canvas_p.x + (e.x-canvas_p.x-ox)/2;
+            let span_width_top = oy + canvas_p.y;
+            let span_height_left = e.x;
+            let span_height_top = e.y - (e.y-canvas_p.y-oy) / 2
+            $(widthSpan).css({'left':`${span_width_left}px`, 'top':`${span_width_top}px`,'transform': 'translate(-50%,-50%)'})
+            $(heightSpan).css({'left':`${span_height_left}px`, 'top':`${span_height_top}px`,'transform': 'translate(-50%,-50%)'})
+
+            if((deg<0 && deg>-90) || (deg>90 && deg<180)){
+              this.currentUI.width = _height;
+              this.currentUI.height = _width;
+            }else{
+              this.currentUI.width = _width;
+              this.currentUI.height = _height;
+            }
+
           }
         }
       }
@@ -649,6 +709,7 @@ export default {
           angle:deg
         })
         this.currentUI.deg_x = deg;
+        this.painTitleInfo.ox_deg = deg;
       }
     },
     // 悬浮按钮-确认
@@ -661,6 +722,8 @@ export default {
       this.isPause = false;
       this.isOriginPoint = false;
       this.isNewCreate = false;
+      this.isShowWidthInfo = false;
+      this.isShowHeightInfo = false;
     },
     //悬浮按钮-取消
     paintBtnCancel(){
@@ -670,6 +733,8 @@ export default {
       this.isPause = false;
       this.isOriginPoint = false;
       this.isNewCreate = false;
+      this.isShowWidthInfo = false;
+      this.isShowHeightInfo = false;
     },
     //悬浮按钮-旋转
     paintBtnRotate(){
@@ -696,7 +761,24 @@ export default {
       if(this.isNewCreate){
         this.paintBtnCancel();
       }
-    }
+    },
+    // 切换渲染和绘制模式
+    changeMode(){
+      if(this.isPaint && this.currentUI.gid !== null){
+        console.log(this.currentUI.gid)
+        let id = this.currentUI.gid;
+        let child = document.getElementById(`${id}`)
+        let paintDom = document.getElementById('paint-layer')
+        paintDom.removeChild(child);
+      }
+      this.isPaint = !this.isPaint;
+      this.isNewCreate = false;
+      this.isPause = false;
+      this.isOriginPoint = false;
+      this.isRotate = false
+      this.isSelectOp = '';
+
+    },
   },
   beforeRouteLeave(to,from,next){
     if(!this.isSave && !this.isExit){
@@ -798,18 +880,23 @@ export default {
   align-items: start;
   background-color: #eee;
 }
+.paint-content-title{
+  width: 65vw;
+  height: 12vh;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.paint-content-title-left, .paint-content-title-right{
+  display: flex;
+  flex-direction: column;
+}
+.paint-content-title-right{
+  align-items: flex-end;
+}
 .paint-msg{
   margin-bottom: 10px;
   color: #87BBFF;
-}
-#canvas{
-  width:1400px;
-  height:700px;
-  background: #fff;
-  cursor: pointer;
-  -webkit-box-shadow: 4px 4px 8px rgba(0,0,0,0.5);
-  -moz-box-shadow: 4px 4px 8px rgba(0,0,0,0.5);
-  box-shadow: 4px 4px 8px rgba(0,0,0,0.5);
 }
 .mode{
   width: 90px;
@@ -820,6 +907,7 @@ export default {
   margin-bottom: 20px;
   text-align: center;
   color: white;
+  cursor: pointer;
 }
 .paint_mode{
   border: red;
@@ -828,6 +916,15 @@ export default {
 .show_mode{
   border: #87BBFF;
   background-color: #87BBFF;
+}
+#canvas{
+  width:1400px;
+  height:700px;
+  background: #fff;
+  cursor: pointer;
+  -webkit-box-shadow: 4px 4px 8px rgba(0,0,0,0.5);
+  -moz-box-shadow: 4px 4px 8px rgba(0,0,0,0.5);
+  box-shadow: 4px 4px 8px rgba(0,0,0,0.5);
 }
 // 悬浮按钮
 #paint-btn{
@@ -845,6 +942,14 @@ export default {
   border-radius: 15px;
   margin-right: 10px;
   cursor: pointer;
+}
+// UI悬浮信息框
+.paint-span-info{
+  background-color: #87BBFF;
+  color: #fff;
+  position: absolute;
+  padding: 2px;
+  z-index: 15;
 }
 // 弹窗图层
 #canvas-modal{
