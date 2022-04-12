@@ -70,7 +70,7 @@
     </div>
 
     <!--  图形UI DOM   -->
-    <div id="paint-layer" class="paint-layer" v-show="isPaint" @mousemove="isNewCreate || isRotate ? moveGraphUI($event) : 'return false;'"  @click="isNewCreate || isRotate ? setStartAndEndPoint($event) : 'return false;'" ref="paint-layer">
+    <div id="paint-layer" class="paint-layer" v-show="isPaint" @mousemove="isNewCreate || isRotate || isMove ? moveGraphUI($event) : 'return false;'"  @click="isNewCreate || isRotate || isMove ? setStartAndEndPoint($event) : 'return false;'" ref="paint-layer">
 
     </div>
 
@@ -78,6 +78,7 @@
     <div id="paint-btn" v-show="isPaint && isPause">
       <span class="iconfont icon-close" title="取消" @click="paintBtnCancel"></span>
       <span class="iconfont icon-exchangerate" title="旋转" @click="paintBtnRotate"></span>
+      <span class="iconfont icon-yidong" title="移动" @click="paintBtnMove"></span>
       <span class="iconfont icon-seleted" title="确认" @click="paintBtnOk"></span>
     </div>
     <!--  UI悬浮信息框（长度与宽度信息）  -->
@@ -111,7 +112,8 @@ export default {
   components: {},
   data() {
     return {
-      isRotate:false,                          // 是否需要旋转
+      isMove:false,                            // 是否进行移动
+      isRotate:false,                          // 是否进行旋转
       isNewCreate:false,                       // 是否新建UI
       isPause:false,                           // 绘制暂停状态
       isExit:false,                            // 是否退出
@@ -419,6 +421,7 @@ export default {
         this.isPause = false;
         this.isOriginPoint = false;
         this.isRotate = false
+        this.isMove = false
         this.isSelectOp = '';
 
         this.clearCanvas();
@@ -452,7 +455,13 @@ export default {
       this.isPause = false;
       this.isOriginPoint = false;
       this.isRotate = false
+      this.isMove = false
       this.isSelectOp = '';
+    },
+    // 获取当前选中UI的信息
+    getSelectedUI(gid){
+      let UI = this.UIList.filter((item)=>item.gid === gid)
+      this.currentUI = JSON.parse(JSON.stringify(UI[0]))
     },
     // 创建直线的DOM
     createSingleLine(e){
@@ -468,6 +477,14 @@ export default {
       LineDOM.style.border = `${this.lineWidth/2}px solid ${this.color}`
       LineDOM.style.borderRadius = `${this.lineWidth/2}px`
       LineDOM.style.backgroundColor = `${this.color}`
+      LineDOM.ondblclick = ((e)=>{
+        this.isRotate = false;
+        this.isMove = false;
+        this.isPause = true;
+        this.isOriginPoint = true;
+        this.setPaintBtnPos(e.target.id)
+        this.getSelectedUI(e.target.id);
+      })
       paintLayer.appendChild(LineDOM)
 
       this.currentUI.gid = $(LineDOM).attr('id')
@@ -488,6 +505,14 @@ export default {
       RectDOM.className = 'rectUI graphUI';
       RectDOM.setAttribute('uiType', 'rect');
       RectDOM.style.border = `${this.lineWidth}px solid ${this.color}`
+      RectDOM.ondblclick = ((e)=>{
+        this.isRotate = false;
+        this.isMove = false;
+        this.isPause = true;
+        this.isOriginPoint = true;
+        this.setPaintBtnPos(e.target.id)
+        this.getSelectedUI(e.target.id);
+      })
       paintLayer.appendChild(RectDOM)
 
       this.currentUI.gid = $(RectDOM).attr('id')
@@ -509,6 +534,14 @@ export default {
       RectDOM.setAttribute('uiType', 'fillRect');
       RectDOM.style.border = `${this.lineWidth}px solid ${this.color}`
       RectDOM.style.backgroundColor = `${this.color}`
+      RectDOM.ondblclick = ((e)=>{
+        this.isRotate = false;
+        this.isMove = false;
+        this.isPause = true;
+        this.isOriginPoint = true;
+        this.setPaintBtnPos(e.target.id)
+        this.getSelectedUI(e.target.id);
+      })
       paintLayer.appendChild(RectDOM)
 
       this.currentUI.gid = $(RectDOM).attr('id')
@@ -529,6 +562,14 @@ export default {
       CycleDOM.setAttribute('uiType', 'cycle');
       CycleDOM.style.border = `${this.lineWidth}px solid ${this.color}`
       CycleDOM.style.borderRadius = '50%'
+      CycleDOM.ondblclick = ((e)=>{
+        this.isRotate = false;
+        this.isMove = false;
+        this.isPause = true;
+        this.isOriginPoint = true;
+        this.setPaintBtnPos(e.target.id)
+        this.getSelectedUI(e.target.id);
+      })
       paintLayer.appendChild(CycleDOM)
 
       this.currentUI.gid = $(CycleDOM).attr('id')
@@ -548,6 +589,14 @@ export default {
       TriangleDOM.className = 'triangleUI graphUI';
       TriangleDOM.setAttribute('uiType','triangle');
       TriangleDOM.style.borderBottomColor = `${this.color}`
+      TriangleDOM.ondblclick = ((e)=>{
+        this.isRotate = false;
+        this.isMove = false;
+        this.isPause = true;
+        this.isOriginPoint = true;
+        this.setPaintBtnPos(e.target.id)
+        this.getSelectedUI(e.target.id);
+      })
       paintLayer.appendChild(TriangleDOM)
 
       this.currentUI.gid = $(TriangleDOM).attr('id')
@@ -567,6 +616,14 @@ export default {
       SemiCycleDOM.className = 'semiCycleUI graphUI';
       SemiCycleDOM.setAttribute('uiType','semiCycle');
       SemiCycleDOM.style.backgroundColor = `${this.color}`
+      SemiCycleDOM.ondblclick = ((e)=>{
+        this.isRotate = false;
+        this.isMove = false;
+        this.isPause = true;
+        this.isOriginPoint = true;
+        this.setPaintBtnPos(e.target.id)
+        this.getSelectedUI(e.target.id);
+      })
       paintLayer.appendChild(SemiCycleDOM);
 
       this.currentUI.gid = $(SemiCycleDOM).attr('id')
@@ -574,6 +631,12 @@ export default {
       this.isPaint = true;
       this.isNewCreate = true;
       this.isSelectOp = e.target.title;
+    },
+    // 设置绘制模式悬浮按钮位置
+    setPaintBtnPos(gid){
+      let UIDOM = document.getElementById(`${gid}`);
+      let UIDOM_p = UIDOM.getBoundingClientRect();
+      $('#paint-btn').css({'left':`${UIDOM_p.left}px`,'top':`${UIDOM_p.top}px`})
     },
     // 单击事件——确定起点或终点
     setStartAndEndPoint(e){
@@ -584,12 +647,13 @@ export default {
       if(!this.isOriginPoint){
         _child.style.left = e.x-canvas_p.x+'px';
         _child.style.top = e.y-canvas_p.y+'px';
-        _child.setAttribute('class','pointUI graphUI')
+        _child.setAttribute('class','pointUI graphUI highLigting')
         this.currentUI.point.ox = this.OriginPoint.ox =e.x-canvas_p.x;
         this.currentUI.point.oy = this.OriginPoint.oy = e.y-canvas_p.y;
         this.isOriginPoint = true;
       }else{
         this.isRotate = false;
+        this.isMove = false;
         this.isPause = true;
         let deg = this.currentUI.deg_x;
         if(deg < 0){
@@ -607,13 +671,13 @@ export default {
 
       if(this.isNewCreate){
         let _child = this.$refs["paint-layer"].lastElementChild;
-        let { ox, oy } = this.OriginPoint;
         if(!this.isOriginPoint && !this.isPause){
           _child.style.left = e.x-canvas_p.x+'px';
           _child.style.top = e.y-canvas_p.y+'px';
           this.painTitleInfo.ox = e.x-canvas_p.x;
           this.painTitleInfo.oy = e.y-canvas_p.y;
         }else if(this.isOriginPoint && !this.isPause){
+          let { ox, oy } = this.OriginPoint;
           let widthSpan = document.getElementById('info-width')
           let heightSpan = document.getElementById('info-height')
           let type = $(_child).attr('uiType');
@@ -700,16 +764,22 @@ export default {
         }
       }
       if(this.isRotate){
-        let uiObj = this.currentUI.gid;
+        let UIGid = this.currentUI.gid;
         let {ox,oy} = this.currentUI.point;
         let rad = Math.atan2(e.y - canvas_p.y - oy, e.x - canvas_p.x - ox);
         let deg = rad / (Math.PI / 180);
-        $(`#${uiObj}`).rotate({
+        $(`#${UIGid}`).rotate({
           center:['0%','0%'],
           angle:deg
         })
         this.currentUI.deg_x = deg;
         this.painTitleInfo.ox_deg = deg;
+      }
+      if(this.isMove){
+        let UIGid = this.currentUI.gid;
+        let move_x = e.x - canvas_p.x;
+        let move_y = e.y - canvas_p.y;
+        $(`#${UIGid}`).css({'left':`${move_x}px`, 'top':`${move_y}px`})
       }
     },
     // 悬浮按钮-确认
@@ -741,6 +811,16 @@ export default {
       this.isNewCreate = false;
       this.isRotate = true;
       this.isPause = false;
+      this.isShowWidthInfo = false;
+      this.isShowHeightInfo = false;
+    },
+    //悬浮按钮-移动
+    paintBtnMove(){
+      this.isNewCreate = false;
+      this.isMove = true;
+      this.isPause = false;
+      this.isShowWidthInfo = false;
+      this.isShowHeightInfo = false;
     },
     // 初始化属性currentUI的值
     initCurrentUI(){
@@ -777,7 +857,6 @@ export default {
       this.isOriginPoint = false;
       this.isRotate = false
       this.isSelectOp = '';
-
     },
   },
   beforeRouteLeave(to,from,next){
@@ -789,6 +868,19 @@ export default {
       next(false);
     }else{
       next()
+    }
+  },
+  watch:{
+    'currentUI.gid':{
+      handler(newGid,oldGid){
+        if(oldGid){
+          $(`#${oldGid}`).removeClass('highLigting');
+        }
+        if(newGid){
+          $(`#${newGid}`).addClass('highLigting');
+        }
+      },
+      deep:true
     }
   }
 }
@@ -1056,5 +1148,10 @@ export default {
 .graphUI{
   position: absolute;
   z-index: 13;
+  cursor: pointer;
+}
+.highLigting{
+  z-index: 20 !important;
+  box-shadow: 0px 0px  20px #06b7f6 !important;
 }
 </style >
